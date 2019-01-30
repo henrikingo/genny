@@ -1,0 +1,64 @@
+# 3 parallel actors:
+# 1 snapshot query / minute runs for 2 minutes -- reads 1GB tepid data
+# 1 snapshot query / 5 minutes runs for 10 minutes -- reads 5GB tepid data
+# 1 snapshot query / day -- reads all live data
+
+Actors:
+    # A CursorIterator actor runs a single query and iterates over the results with next().
+    # There may be a MinDelay sleep between calls to next()
+  - Name: CursorIterator
+    Type: CursorIterator
+    Database: &DB test
+    CollectionCount: 1000
+    DocumentCount: 1e4
+    Threads: 2
+    Filter: { z: { "$gt" : { ^RandomInt: {min: 0, max: 2147483647} } } }
+    # Documents are 1KB so we want to read 1024 documents over 2 minutes.
+    Limit: 1024
+    MinDelay: 117 milliseconds  # Sleep between next()
+    ReadConcern: Snapshot # Implies transaction
+    StaggerThreadStart: 60 seconds # Second thread starts after 60 seconds
+
+    HardLimits:
+        Next: # Note, this refers to the next() operation of a cursor
+            Latency: 500 milliseconds
+            SLA: 99.5
+
+    Phases:
+      - Duration: 24 hours
+
+
+  - Name: CursorIterator
+    Type: CursorIterator
+    Threads: 2
+    # No filter => scans from "beginning" of collection or index
+    Sort: { z: 1 } # Affects whether to use index or collection scan.
+    # Documents are 1KB so we want to read 5*1024 documents over 10 minutes.
+    Limit: 5120
+    MinDelay: 117 milliseconds
+    ReadConcern: Snapshot
+    StaggerThreadStart: 5 minutes
+
+    HardLimits:
+        Next:
+            Latency: 500 milliseconds
+            SLA: 99.5
+
+    Phases:
+      - Duration: 24 hours
+
+
+  - Name: CursorIterator
+    Type: CursorIterator
+    Threads: 1
+    # No filter, no sort, no limit => full collection scan
+    MinDelay: 117 milliseconds
+    ReadConcern: Snapshot
+
+    HardLimits:
+        Next:
+            Latency: 500 milliseconds
+            SLA: 99.5
+
+    Phases:
+      - Duration: 24 hours

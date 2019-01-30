@@ -1,0 +1,49 @@
+# The same as Main.yml, but all in parallel
+
+# This workload describes requirements to be implemented. Details and syntax are expected to change when implemented.
+SchemaVersion: 9999-12-31
+
+
+Actors:
+  - Type: SubWorkload
+    File: Load.yml
+    Arguments:
+        CollectionCount: &CollectionCount 10000
+    Phases:
+      - Phase: 0
+        Repeat: 1
+  - Type: SubWorkload
+    File: Updates.yml
+    Arguments:
+        TargetRate: 10000 # ops/sec
+        CollectionCount: 100  # This is specifically 1% of collections
+        Distribution : zipfian # uniform, hot, ...
+    Phases:
+      - Phase: 1
+        Duration: 24 hours
+  - Type: SubWorkload
+    File: Queries.yml
+    Arguments:
+        # TBD: Is this a target or a requirement? (Is it a max or a min?)
+        # TBD: Why is this lower than the update rate?
+        TargetRate: 1000 # ops/sec
+        CollectionCount: 1000  # This is specifically 10% of collections
+        Distribution : zipfian # uniform, hot, ...
+    Phases:
+      - Phase: 1
+        Duration: 24 hours
+  - Type: SubWorkload
+    File: SnapshotQueries.yml
+    Arguments:
+        CollectionCount: *CollectionCount
+    Phases:
+      - Phase: 1
+        Duration: 24 hours
+  - Type: SubWorkload
+    File: TimeSeriesWorkload.yml
+    Arguments:
+        CreateCollectionRate: 1 # per second
+        DropCollectionRate: 1
+    Phases:
+      - Phase: 1
+        Duration: 24 hours

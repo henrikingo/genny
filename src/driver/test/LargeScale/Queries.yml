@@ -1,0 +1,16 @@
+SchemaVersion: 2018-07-01
+
+Pool:
+  QueryOptions:
+    maxPoolSize: 1000
+Actors:
+  - Name: MultiCollectionQuery
+    Type: MultiCollectionQuery
+    Threads: 100
+    Database: *DB
+    CollectionCount: 100  # This is specifically 10% of collections.
+    Filter: {y: {^RandomInt: {distribution: poisson, mean: 100}}}
+    Limit: 20
+    Phases:
+      - Duration: 10 minutes
+        MinDelay: 9 milliseconds

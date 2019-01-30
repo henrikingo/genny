@@ -1,0 +1,69 @@
+# The overarching description for a large scale workload Genny configuration.
+# This workload is supposed to capture all of the requirements in
+# https://docs.google.com/document/d/1Gut_7zhm4Kc9emG7Y4xW2iDapiYGGu6eYFcK4HU7OeQ/edit#heading=h.rawojqixilb
+#
+
+# This workload describes requirements to be implemented. Details and syntax are expected to change when implemented.
+SchemaVersion: 9999-12-31
+
+
+Actors:
+    # SubWorkload executes the workload described in another yaml file.
+    # Restriction to simplify discussion: the SubWorkload only has a single phase.
+    # Requirement: SubWorkload can exit with failure (e.g. HardLimit). In this case Main workload also exits without executing remaining steps.
+  - Type: SubWorkload
+    File: Load.yml
+    # Arguments replace the top level key with same name in the called file.
+    Arguments:
+        CollectionCount: &CollectionCount 10000
+    Phases:
+      # Not essential, but below suggests new syntax: omitted phases default to Nop.
+      - Phase: 0
+        Repeat: 1
+  - Type: SubWorkload
+    File: Updates.yml
+    Arguments:
+        # Note: total ops generated approximately 1MB oplog / second (assumes avg write is 200 bytes of oplog with 2:1 compression)
+        # TBD: Is this a target or a requirement? (Is it a max or a min?)
+        TargetRate: 10000 # ops/sec
+        CollectionCount: 100  # This is specifically 1% of collections
+        Distribution : zipfian # uniform, hot, ...
+    Phases:
+      - Phase: 1
+        # Duration overrides the Duration in the SubWorkload
+        Duration: 1 hour
+  - Type: SubWorkload
+    File: Queries.yml
+    Arguments:
+        # TBD: Is this a target or a requirement? (Is it a max or a min?)
+        # TBD: Why is this lower than the update rate?
+        TargetRate: 1000 # ops/sec
+        CollectionCount: 1000  # This is specifically 10% of collections
+        Distribution : zipfian # uniform, hot, ...
+    Phases:
+      - Phase: 2
+        Duration: 1 hour
+  - Type: SubWorkload
+    File: SnapshotQueries.yml
+    Arguments:
+        CollectionCount: *CollectionCount
+    Phases:
+      - Phase: 3
+        Duration: 12 hours
+  - Type: SubWorkload
+    File: TimeSeriesWorkload.yml
+    Arguments:
+        CreateCollectionRate: 1 # per second
+        DropCollectionRate: 1
+    Phases:
+      - Phase: 4
+        Duration: 1 day
+
+# TBD
+#     truncate:
+#          record_count: 1000
+#          period: 1 sec
+#
+# Is this satisfied by deploying a replica set?
+#    An oplog that is being tailed
+#    ... including oplog tailing

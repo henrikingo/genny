@@ -1,0 +1,16 @@
+SchemaVersion: 2018-07-01
+
+Pool:
+  QueryOptions:
+    maxPoolSize: 1000
+Actors:
+  - Name: MultiCollectionUpdate
+    Type: MultiCollectionUpdate
+    Threads: 100
+    Database: *DB
+    CollectionCount: 10  # This is specifically 1% of collections
+    UpdateFilter: {y: {^RandomInt: {distribution: poisson, mean: 100}}}
+    Update: {$inc: {x: 1}}
+    Phases:
+      - Duration: 10 minutes
+        TargetRate: 10000 # ops/sec
